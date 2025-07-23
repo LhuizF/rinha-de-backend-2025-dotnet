@@ -11,8 +11,8 @@ namespace Rinha.Infra.Consumer
     private readonly InMemoryQueueMessaging _queue;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<PaymentMessageConsumer> _logger;
-    private const int MaxConcurrentMessages = 10;
-    private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1000);
+    private const int MaxConcurrentMessages = 20;
+    private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, MaxConcurrentMessages);
 
     public PaymentMessageConsumer(InMemoryQueueMessaging queue, IServiceProvider serviceProvider, ILogger<PaymentMessageConsumer> logger)
     {
