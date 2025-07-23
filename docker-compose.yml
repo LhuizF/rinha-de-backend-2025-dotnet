@@ -1,15 +1,21 @@
 services:
-  # rabbitmq:
-  #   image: rabbitmq:3-management
-  #   container_name: rabbitmq
-  #   ports:
-  #     - "5672:5672"
-  #     - "15672:15672"
-  #   environment:
-  #     RABBITMQ_DEFAULT_USER: user
-  #     RABBITMQ_DEFAULT_PASS: password
-  #   networks:
-  #     - backend
+  api1: &api
+    build: ./app
+    hostname: api1
+    container_name: api1
+    # ports:
+    #   - "8080:80"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+    networks:
+      - backend
+      - payment-processor
+
+  api2:
+    <<: *api
+    hostname: api2
+    container_name: api2
 
   load-balancer:
     image: nginx:1.25.2-alpine
