@@ -23,7 +23,7 @@ builder.Services.AddDbContext<RinhaDbContext>(options =>
 
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IMessagePublisher, InMemoryQueueMessaging>();
-builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+builder.Services.AddSingleton<IPaymentRepository, PaymentRepository>();
 
 // HttpClients
 builder.Services.AddHttpClient("DefaultProcessor", client =>
@@ -44,6 +44,8 @@ builder.Services.AddSingleton<InMemoryQueueMessaging>();
 builder.Services.AddHostedService<PaymentMessageConsumer>();
 
 builder.Services.AddSingleton<IMessagePublisher>(provider => provider.GetRequiredService<InMemoryQueueMessaging>());
+
+builder.Services.AddAutoMapper(typeof(PaymentService).Assembly);
 
 var app = builder.Build();
 

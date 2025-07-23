@@ -8,12 +8,9 @@ namespace Rinha.Infra.Messaging
   {
     private readonly Channel<PaymentMessage> _channel = Channel.CreateUnbounded<PaymentMessage>();
     public ChannelReader<PaymentMessage> Reader => _channel.Reader;
-    public async Task PublishAsync<T>(T message)
+    public async Task PublishAsync(PaymentMessage message)
     {
-      if (message is PaymentMessage paymentMessage)
-      {
-        await _channel.Writer.WriteAsync(paymentMessage);
-      }
+      await _channel.Writer.WriteAsync(message);
     }
   }
 }

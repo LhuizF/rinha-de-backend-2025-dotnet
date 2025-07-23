@@ -1,3 +1,4 @@
+using AutoMapper;
 using Rinha.Application.DTOs;
 using Rinha.Application.Interfaces;
 using Rinha.Domain.Entities;
@@ -11,14 +12,16 @@ namespace Rinha.Application.Services
     private readonly IPaymentRepository _paymentRepository;
     private readonly IPaymentProcessorClient _paymentProcessorClient;
     private readonly IMessagePublisher _messagePublisher;
+    private readonly IMapper _mapper;
 
     private const int RetryCount = 3;
 
-    public PaymentService(IPaymentRepository paymentRepository, IPaymentProcessorClient paymentProcessorClient, IMessagePublisher messagePublisher)
+    public PaymentService(IPaymentRepository paymentRepository, IPaymentProcessorClient paymentProcessorClient, IMessagePublisher messagePublisher, IMapper mapper)
     {
       _paymentRepository = paymentRepository;
       _paymentProcessorClient = paymentProcessorClient;
       _messagePublisher = messagePublisher;
+      _mapper = mapper;
     }
 
     public async Task AddPaymentToQueueAsync(Guid correlationId, decimal amount)
@@ -69,6 +72,13 @@ namespace Rinha.Application.Services
       }
 
       return false;
+    }
+
+    public async Task<PaymentsSummaryDTO> GetPaymentsSummaryAsync(DateTime? from, DateTime? to)
+    {
+      var summary = await _paymentRepository.GetPaymentsSummaryAsync(from, to);
+
+      return _mapper.Map<PaymentsSummaryDTO>(summary);
     }
   }
 }

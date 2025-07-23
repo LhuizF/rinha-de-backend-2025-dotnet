@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Rinha.Api.Dtos;
 using Rinha.Application.Interfaces;
@@ -22,9 +23,11 @@ namespace Rinha.Api.Controllers
     }
 
     [HttpGet("/payments-summary")]
-    public IActionResult PaymentsSummary([FromQuery] DateTime? from, [FromQuery] DateTime? to)
+    public async Task<IActionResult> PaymentsSummary([FromQuery] DateTime? from, [FromQuery] DateTime? to)
     {
-      return Ok(new { message = "Ok" });
+      var summary = await _paymentService.GetPaymentsSummaryAsync(from, to);
+
+      return Ok(summary);
     }
   }
 }

@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using Rinha.Domain.Entities;
+using Rinha.Domain.Enum;
 using Rinha.Domain.Interfaces;
 using Rinha.Infra.Persistence;
 
@@ -6,39 +8,44 @@ namespace Rinha.Infra.Repositories
 {
   public class PaymentRepository : IPaymentRepository
   {
-    private readonly RinhaDbContext _context;
-
-    public PaymentRepository(RinhaDbContext context)
-    {
-      _context = context;
-    }
+    private readonly ConcurrentQueue<Payment> _payments = new ConcurrentQueue<Payment>();
 
     public Task AddAsync(Payment payment)
     {
-      _context.Payments.Add(payment);
-      return _context.SaveChangesAsync();
+      _payments.Enqueue(payment);
+      return Task.CompletedTask;
     }
-    public Task<IEnumerable<Payment>> FindAsync(DateTime? from, DateTime? to)
+    public Task<PaymentsSummary> GetPaymentsSummaryAsync(DateTime? from, DateTime? to)
     {
-      var query = _context.Payments.AsQueryable();
+      List<Payment> filteredPayments = _payments
+        .AsParallel()
+        .Where(p => (!from.HasValue || p.RequestedAt >= from.Value) && (!to.HasValue || p.RequestedAt <= to.Value))
+        .ToList();
 
-      if (from.HasValue)
+      var defaultPayments = filteredPayments.Where(p => p.Processor == PaymentProcessor.Default);
+      var fallbackPayments = filteredPayments.Where(p => p.Processor == PaymentProcessor.Fallback);
+
+      PaymentsSummary summary = new PaymentsSummary
       {
-        query = query.Where(p => p.RequestedAt >= from.Value);
-      }
+        Default =
+        {
+          TotalRequests = defaultPayments.Count(),
+          TotalAmount = defaultPayments.Sum(p => p.GetAmount())
+        },
+        Fallback =
+        {
+          TotalRequests = fallbackPayments.Count(),
+          TotalAmount = fallbackPayments.Sum(p => p.GetAmount())
+        }
+      };
 
-      if (to.HasValue)
-      {
-        query = query.Where(p => p.RequestedAt <= to.Value);
-      }
-
-      return Task.FromResult(query.AsEnumerable());
+      return Task.FromResult(summary);
     }
 
     public Task ClearAllAsync()
     {
-      _context.Payments.RemoveRange(_context.Payments);
-      return _context.SaveChangesAsync();
+      while (_payments.TryDequeue(out _)) { }
+      return Task.CompletedTask;
     }
 
   }

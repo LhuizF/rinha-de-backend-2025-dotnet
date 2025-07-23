@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Rinha.Application.Interfaces;
 using Rinha.Infra.Messaging;
 
@@ -9,22 +10,40 @@ namespace Rinha.Infra.Consumer
   {
     private readonly InMemoryQueueMessaging _queue;
     private readonly IServiceProvider _serviceProvider;
+    private readonly ILogger<PaymentMessageConsumer> _logger;
+    private const int MaxConcurrentMessages = 10;
+    private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1000);
 
-    public PaymentMessageConsumer(InMemoryQueueMessaging queue, IServiceProvider serviceProvider)
+    public PaymentMessageConsumer(InMemoryQueueMessaging queue, IServiceProvider serviceProvider, ILogger<PaymentMessageConsumer> logger)
     {
       _queue = queue;
       _serviceProvider = serviceProvider;
+      _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-
       await foreach (var message in _queue.Reader.ReadAllAsync(stoppingToken))
       {
-        using var scope = _serviceProvider.CreateScope();
-        var paymentService = scope.ServiceProvider.GetRequiredService<IPaymentService>();
+        await _semaphore.WaitAsync(stoppingToken);
 
-        Console.WriteLine($"Mensagem recebida! {message.CorrelationId}");
+        _ = Task.Run(async () =>
+        {
+          try
+          {
+            using var scope = _serviceProvider.CreateScope();
+            var paymentService = scope.ServiceProvider.GetRequiredService<IPaymentService>();
+            await paymentService.ProcessPaymentAsync(message);
+          }
+          catch (Exception ex)
+          {
+            _logger.LogError(ex, "Erro ao processar mensagem {CorrelationId}", message.CorrelationId);
+          }
+          finally
+          {
+            _semaphore.Release();
+          }
+        }, stoppingToken);
       }
     }
   }
