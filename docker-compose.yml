@@ -33,7 +33,39 @@ services:
       resources:
         limits:
           cpus: "0.15"
-          memory: "15MB"
+          memory: "30MB"
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command:
+      [
+        "redis-server",
+        "--save",
+        "",
+        "--appendonly",
+        "no",
+        "--maxclients",
+        "10000",
+        "--tcp-backlog",
+        "511",
+        "--dynamic-hz",
+        "yes",
+      ]
+    ports:
+      - "6379:6379"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.15"
+          memory: "60MB"
 
 networks:
   backend:

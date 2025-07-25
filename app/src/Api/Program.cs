@@ -5,8 +5,7 @@ using Rinha.Domain.Interfaces;
 using Rinha.Infra.Consumer;
 using Rinha.Infra.Gateway;
 using Rinha.Infra.Messaging;
-using Rinha.Infra.Persistence;
-using Rinha.Infra.Repositories;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,12 +17,11 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddDbContext<RinhaDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
-
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IMessagePublisher, InMemoryQueueMessaging>();
-builder.Services.AddSingleton<IPaymentRepository, PaymentRepository>();
+// builder.Services.AddSingleton<IPaymentRepository, PaymentRepository>();
+// builder.Services.AddScoped<IPaymentRepository, PostgresPaymentRepository>();
+builder.Services.AddScoped<IPaymentRepository, RedisPaymentRepository>();
 
 // HttpClients
 builder.Services.AddHttpClient("DefaultProcessor", client =>
@@ -41,7 +39,24 @@ builder.Services.AddHttpClient("FallbackProcessor", client =>
 builder.Services.AddScoped<IPaymentProcessorClient, PaymentProcessorClient>();
 
 builder.Services.AddSingleton<InMemoryQueueMessaging>();
-builder.Services.AddHostedService<PaymentMessageConsumer>();
+builder.Services.AddHostedService(
+  provider => new PaymentMessageConsumer(
+    provider.GetRequiredService<InMemoryQueueMessaging>(),
+    provider,
+    maxConcurrentProcesses: int.Parse(Environment.GetEnvironmentVariable("MAX_CONCURRENT_PROCESSES") ?? "10")
+  )
+);
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var connectionString = builder.Configuration["REDIS_CONNECTION"] ?? builder.Configuration["Redis:Connection"];
+    Console.WriteLine($"Connecting to Redis at: {connectionString}");
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        throw new InvalidOperationException("Redis connection string is not configured.");
+    }
+    return ConnectionMultiplexer.Connect(connectionString!);
+});
 
 builder.Services.AddSingleton<IMessagePublisher>(provider => provider.GetRequiredService<InMemoryQueueMessaging>());
 
@@ -57,7 +72,7 @@ if (app.Environment.IsDevelopment())
   app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 
 app.MapControllers();
 

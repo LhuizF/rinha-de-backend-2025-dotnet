@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Rinha.Application.Interfaces;
 using Rinha.Infra.Messaging;
 
@@ -10,15 +9,14 @@ namespace Rinha.Infra.Consumer
   {
     private readonly InMemoryQueueMessaging _queue;
     private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<PaymentMessageConsumer> _logger;
-    private const int MaxConcurrentMessages = 20;
-    private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, MaxConcurrentMessages);
+    private readonly SemaphoreSlim _semaphore;
 
-    public PaymentMessageConsumer(InMemoryQueueMessaging queue, IServiceProvider serviceProvider, ILogger<PaymentMessageConsumer> logger)
+    public PaymentMessageConsumer(InMemoryQueueMessaging queue, IServiceProvider serviceProvider, int maxConcurrentProcesses)
     {
+      Console.WriteLine($"Max concurrent processes: {maxConcurrentProcesses}");
       _queue = queue;
       _serviceProvider = serviceProvider;
-      _logger = logger;
+      _semaphore = new SemaphoreSlim(1, maxConcurrentProcesses);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -37,7 +35,7 @@ namespace Rinha.Infra.Consumer
           }
           catch (Exception ex)
           {
-            _logger.LogError(ex, "Erro ao processar mensagem {CorrelationId}", message.CorrelationId);
+            Console.WriteLine($"Error processing payment message: {ex.Message}");
           }
           finally
           {

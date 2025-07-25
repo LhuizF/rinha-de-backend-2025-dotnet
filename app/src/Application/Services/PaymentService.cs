@@ -4,6 +4,7 @@ using Rinha.Application.Interfaces;
 using Rinha.Domain.Entities;
 using Rinha.Domain.Enum;
 using Rinha.Domain.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace Rinha.Application.Services
 {
@@ -13,15 +14,17 @@ namespace Rinha.Application.Services
     private readonly IPaymentProcessorClient _paymentProcessorClient;
     private readonly IMessagePublisher _messagePublisher;
     private readonly IMapper _mapper;
+    private readonly ILogger<PaymentService> _logger;
 
     private const int RetryCount = 3;
 
-    public PaymentService(IPaymentRepository paymentRepository, IPaymentProcessorClient paymentProcessorClient, IMessagePublisher messagePublisher, IMapper mapper)
+    public PaymentService(IPaymentRepository paymentRepository, IPaymentProcessorClient paymentProcessorClient, IMessagePublisher messagePublisher, IMapper mapper, ILogger<PaymentService> logger)
     {
       _paymentRepository = paymentRepository;
       _paymentProcessorClient = paymentProcessorClient;
       _messagePublisher = messagePublisher;
       _mapper = mapper;
+      _logger = logger;
     }
 
     public async Task AddPaymentToQueueAsync(Guid correlationId, decimal amount)
@@ -46,6 +49,7 @@ namespace Rinha.Application.Services
 
         return;
       }
+      _logger.LogWarning("Falha final no processamento do pagamento {CorrelationId}, {isSuccess}", payment.CorrelationId, isSuccess);
 
       await AddPaymentToQueueAsync(payment.CorrelationId, payment.GetAmount());
     }
@@ -62,7 +66,7 @@ namespace Rinha.Application.Services
           return true;
         }
 
-        await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, i)));
+        // await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, i)));
       }
 
       if (await _paymentProcessorClient.ProcessPaymentFallback(request))

@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using Rinha.Domain.Entities;
 using Rinha.Domain.Enum;
 using Rinha.Domain.Interfaces;
-using Rinha.Infra.Persistence;
 
 namespace Rinha.Infra.Repositories
 {
