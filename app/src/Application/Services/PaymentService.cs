@@ -84,5 +84,10 @@ namespace Rinha.Application.Services
 
       return _mapper.Map<PaymentsSummaryDTO>(summary);
     }
+
+    public async Task PurgePaymentsAsync()
+    {
+      await _paymentRepository.ClearAllAsync();
+    }
   }
 }

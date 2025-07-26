@@ -29,5 +29,13 @@ namespace Rinha.Api.Controllers
 
       return Ok(summary);
     }
+
+    [HttpPost("/purge-payments")]
+    public async Task<IActionResult> PurgePayments()
+    {
+      await _paymentService.PurgePaymentsAsync();
+
+      return Ok(new { message = "Ok" });
+    }
   }
 }

@@ -9,7 +9,7 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ASPNETCORE_ENVIRONMENT: Development
       MAX_CONCURRENT_PROCESSES: 80
-      REDIS_CONNECTION: redis:6379
+      REDIS_CONNECTION: redis:6379,abortConnect=false,allowAdmin=true
     networks:
       - backend
       - payment-processor

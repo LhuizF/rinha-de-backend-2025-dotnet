@@ -95,6 +95,5 @@ public class RedisPaymentRepository : IPaymentRepository
   {
     var server = _redisDb.Multiplexer.GetServer(_redisDb.Multiplexer.GetEndPoints().First());
     await server.FlushDatabaseAsync(_redisDb.Database);
-    _logger.LogInformation("Todos os dados do repositório Redis foram limpos.");
   }
 }

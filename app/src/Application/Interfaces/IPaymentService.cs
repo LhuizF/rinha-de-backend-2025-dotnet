@@ -7,5 +7,6 @@ namespace Rinha.Application.Interfaces
     Task AddPaymentToQueueAsync(Guid correlationId, decimal amount);
     Task ProcessPaymentAsync(PaymentMessage paymentMessage);
     Task<PaymentsSummaryDTO> GetPaymentsSummaryAsync(DateTime? from, DateTime? to);
+    Task PurgePaymentsAsync();
   }
 }
