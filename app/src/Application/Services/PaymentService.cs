@@ -27,10 +27,10 @@ namespace Rinha.Application.Services
       _logger = logger;
     }
 
-    public async Task AddPaymentToQueueAsync(Guid correlationId, decimal amount)
+    public void AddPaymentToQueueAsync(Guid correlationId, decimal amount)
     {
       var paymentMessage = new PaymentMessage(correlationId, amount, DateTime.UtcNow);
-      await _messagePublisher.PublishAsync(paymentMessage);
+      _messagePublisher.PublishAsync(paymentMessage);
     }
 
     public async Task ProcessPaymentAsync(PaymentMessage paymentMessage)
@@ -51,7 +51,7 @@ namespace Rinha.Application.Services
       }
       _logger.LogWarning("Falha final no processamento do pagamento {CorrelationId}, {isSuccess}", payment.CorrelationId, isSuccess);
 
-      await AddPaymentToQueueAsync(payment.CorrelationId, payment.GetAmount());
+      AddPaymentToQueueAsync(payment.CorrelationId, payment.GetAmount());
     }
 
     private async Task<bool> SendPaymentAsync(Payment payment)

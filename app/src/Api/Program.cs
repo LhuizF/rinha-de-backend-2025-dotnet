@@ -9,8 +9,21 @@ using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+string SOCKET_PATH = Environment.GetEnvironmentVariable("SOCKET_PATH") ?? throw new ArgumentNullException("SOCKET_PATH Error");
+
+if (File.Exists(SOCKET_PATH))
+{
+  File.Delete(SOCKET_PATH);
+}
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+  options.ListenUnixSocket(SOCKET_PATH);
+});
+
+
+
+
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 
@@ -63,6 +76,21 @@ builder.Services.AddSingleton<IMessagePublisher>(provider => provider.GetRequire
 builder.Services.AddAutoMapper(typeof(PaymentService).Assembly);
 
 var app = builder.Build();
+
+var applicationLifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+
+applicationLifetime.ApplicationStarted.Register(() =>
+{
+  try
+  {
+    int permissions = Convert.ToInt32("777", 8);
+    File.SetUnixFileMode(SOCKET_PATH, (UnixFileMode)permissions);
+  }
+  catch (Exception ex)
+  {
+    Console.WriteLine($"Socket permissions Failed: {ex.Message}");
+  }
+});
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

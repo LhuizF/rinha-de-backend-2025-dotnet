@@ -27,11 +27,9 @@ public class RedisPaymentRepository : IPaymentRepository
     var paymentKey = $"{PaymentJsonKeyPrefix}{payment.CorrelationId}";
     var paymentJson = JsonConvert.SerializeObject(payment);
 
-    // 1. Armazena o JSON completo
     await _redisDb.StringSetAsync(paymentKey, paymentJson);
     _logger.LogDebug("Pagamento {CorrelationId} armazenado como JSON no Redis.", payment.CorrelationId);
 
-    // 2. Indexa o pagamento por data
     await _redisDb.SortedSetAddAsync(PaymentIndexKey, payment.CorrelationId.ToString(), payment.RequestedAt.Ticks);
 
   }
@@ -46,7 +44,7 @@ public class RedisPaymentRepository : IPaymentRepository
     if (!correlationIds.Any())
     {
       return new PaymentsSummary();
-      }
+    }
 
     RedisKey[] paymentKeys = correlationIds.Select(redisValue => (RedisKey)$"{PaymentJsonKeyPrefix}{redisValue}").ToArray();
 
