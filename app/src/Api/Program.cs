@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Microsoft.EntityFrameworkCore;
 using Rinha.Application.Interfaces;
 using Rinha.Application.Services;
@@ -5,23 +6,23 @@ using Rinha.Domain.Interfaces;
 using Rinha.Infra.Consumer;
 using Rinha.Infra.Gateway;
 using Rinha.Infra.Messaging;
+using Rinha.Infra.Repositories;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
-string SOCKET_PATH = Environment.GetEnvironmentVariable("SOCKET_PATH") ?? throw new ArgumentNullException("SOCKET_PATH Error");
+string socketPath = Environment.GetEnvironmentVariable("SOCKET_PATH") ?? throw new ArgumentNullException("SOCKET_PATH Error");
 
-if (File.Exists(SOCKET_PATH))
+if (File.Exists(socketPath))
 {
-  File.Delete(SOCKET_PATH);
+  File.Delete(socketPath);
 }
 
 builder.WebHost.ConfigureKestrel(options =>
 {
-  options.ListenUnixSocket(SOCKET_PATH);
+  options.ListenUnixSocket(socketPath);
+  options.ListenAnyIP(8080);
 });
-
-
 
 
 builder.Services.AddOpenApi();
@@ -32,20 +33,17 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IMessagePublisher, InMemoryQueueMessaging>();
-// builder.Services.AddSingleton<IPaymentRepository, PaymentRepository>();
-// builder.Services.AddScoped<IPaymentRepository, PostgresPaymentRepository>();
-builder.Services.AddScoped<IPaymentRepository, RedisPaymentRepository>();
+builder.Services.AddSingleton<IPaymentRepository, RedisPaymentRepository>();
 
-// HttpClients
 builder.Services.AddHttpClient("DefaultProcessor", client =>
 {
-  var defaultUrl = builder.Configuration["PaymentProcessor:DefaultUrl"];
+  var defaultUrl = Environment.GetEnvironmentVariable("PAYMENT_PROCESSOR_DEFAULT_URL");
   client.BaseAddress = new Uri(defaultUrl!);
 });
 
 builder.Services.AddHttpClient("FallbackProcessor", client =>
 {
-  var fallbackUrl = builder.Configuration["PaymentProcessor:FallbackUrl"];
+  var fallbackUrl = Environment.GetEnvironmentVariable("PAYMENT_PROCESSOR_FALLBACK_URL");
   client.BaseAddress = new Uri(fallbackUrl!);
 });
 
@@ -62,13 +60,12 @@ builder.Services.AddHostedService(
 
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
-    var connectionString = builder.Configuration["REDIS_CONNECTION"] ?? builder.Configuration["Redis:Connection"];
-    Console.WriteLine($"Connecting to Redis at: {connectionString}");
-    if (string.IsNullOrEmpty(connectionString))
+    var redisConnection = Environment.GetEnvironmentVariable("REDIS_CONNECTION") ?? throw new ArgumentNullException("REDIS_CONNECTION Error");
+    if (string.IsNullOrEmpty(redisConnection))
     {
         throw new InvalidOperationException("Redis connection string is not configured.");
     }
-    return ConnectionMultiplexer.Connect(connectionString!);
+    return ConnectionMultiplexer.Connect(redisConnection);
 });
 
 builder.Services.AddSingleton<IMessagePublisher>(provider => provider.GetRequiredService<InMemoryQueueMessaging>());
@@ -83,8 +80,11 @@ applicationLifetime.ApplicationStarted.Register(() =>
 {
   try
   {
-    int permissions = Convert.ToInt32("777", 8);
-    File.SetUnixFileMode(SOCKET_PATH, (UnixFileMode)permissions);
+        int permissions = Convert.ToInt32("777", 8);
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+          File.SetUnixFileMode(socketPath, (UnixFileMode)permissions);
+        }
   }
   catch (Exception ex)
   {

@@ -4,31 +4,33 @@ services:
     hostname: api1
     container_name: api1
     environment:
-      ASPNETCORE_URLS: http://+:8080
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
+      PAYMENT_PROCESSOR_DEFAULT_URL: http://payment-processor-default:8080
+      PAYMENT_PROCESSOR_FALLBACK_URL: http://payment-processor-fallback:8080
       MAX_CONCURRENT_PROCESSES: 20
       REDIS_CONNECTION: redis:6379,abortConnect=false,allowAdmin=true
       SOCKET_PATH: /tmp/sockets/api1.sock
     networks:
       - backend
       - payment-processor
-    depends_on:
-      - redis
+    # depends_on:
+    #   - redis
     volumes:
       - sockets:/tmp/sockets
     deploy:
       resources:
         limits:
-          cpus: "0.65"
-          memory: "145MB"
+          cpus: "0.70"
+          memory: "170MB"
 
   api2:
     <<: *api
     hostname: api2
     container_name: api2
     environment:
-      ASPNETCORE_URLS: http://+:8080
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
+      PAYMENT_PROCESSOR_DEFAULT_URL: http://payment-processor-default:8080
+      PAYMENT_PROCESSOR_FALLBACK_URL: http://payment-processor-fallback:8080
       MAX_CONCURRENT_PROCESSES: 20
       REDIS_CONNECTION: redis:6379,abortConnect=false,allowAdmin=true
       SOCKET_PATH: /tmp/sockets/api2.sock
