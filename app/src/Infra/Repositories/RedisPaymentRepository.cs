@@ -1,8 +1,7 @@
 using System;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using StackExchange.Redis;
 using Rinha.Domain.Entities;
 using Rinha.Domain.Enum;
@@ -25,7 +24,7 @@ public class RedisPaymentRepository : IPaymentRepository
   public async Task AddAsync(Payment payment)
   {
     var paymentKey = $"{PaymentJsonKeyPrefix}{payment.CorrelationId}";
-    var paymentJson = JsonConvert.SerializeObject(payment);
+    var paymentJson = JsonSerializer.Serialize(payment);
 
     await _redisDb.StringSetAsync(paymentKey, paymentJson);
     _logger.LogDebug("Pagamento {CorrelationId} armazenado como JSON no Redis.", payment.CorrelationId);
@@ -61,7 +60,7 @@ public class RedisPaymentRepository : IPaymentRepository
 
       try
       {
-        payment = JsonConvert.DeserializeObject<Payment>(paymentJson);
+        payment = JsonSerializer.Deserialize<Payment>(paymentJson.ToString());
       }
       catch (Exception ex)
       {

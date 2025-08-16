@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Rinha.Application.DTOs;
 using Rinha.Application.Interfaces;
 using Rinha.Infra.Messaging;
 
@@ -16,7 +17,7 @@ namespace Rinha.Infra.Consumer
       Console.WriteLine($"Max concurrent processes: {maxConcurrentProcesses}");
       _queue = queue;
       _serviceProvider = serviceProvider;
-      _semaphore = new SemaphoreSlim(1, maxConcurrentProcesses);
+      _semaphore = new SemaphoreSlim(maxConcurrentProcesses, maxConcurrentProcesses);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -25,24 +26,32 @@ namespace Rinha.Infra.Consumer
       {
         await _semaphore.WaitAsync(stoppingToken);
 
-        _ = Task.Run(async () =>
-        {
-          try
-          {
-            using var scope = _serviceProvider.CreateScope();
-            var paymentService = scope.ServiceProvider.GetRequiredService<IPaymentService>();
-            await paymentService.ProcessPaymentAsync(message);
-          }
-          catch (Exception ex)
-          {
-            Console.WriteLine($"Error processing payment message: {ex.Message}");
-          }
-          finally
-          {
-            _semaphore.Release();
-          }
-        }, stoppingToken);
+        _ = ProcessAndReleaseAsync(message, stoppingToken);
       }
     }
+
+    private async Task ProcessAndReleaseAsync(PaymentMessage message, CancellationToken stoppingToken)
+    {
+      try
+      {
+        using var scope = _serviceProvider.CreateScope();
+        var paymentService = scope.ServiceProvider.GetRequiredService<IPaymentService>();
+
+        if(paymentService == null)
+        {
+          Console.WriteLine("PaymentService is null, cannot process message.");
+          return;
+        }
+        await paymentService.ProcessPaymentAsync(message);
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error processing payment message: {ex.Message}");
+      }
+      finally
+      {
+        _semaphore.Release();
+      }
+}
   }
 }

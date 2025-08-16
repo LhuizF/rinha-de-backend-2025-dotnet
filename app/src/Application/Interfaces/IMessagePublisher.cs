@@ -4,6 +4,6 @@ namespace Rinha.Application.Interfaces
 {
     public interface IMessagePublisher
     {
-        Task PublishAsync(PaymentMessage message);
+        void PublishAsync(PaymentMessage message);
     }
 }
