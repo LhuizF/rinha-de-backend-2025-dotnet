@@ -27,7 +27,6 @@ public class RedisPaymentRepository : IPaymentRepository
     var paymentJson = JsonSerializer.Serialize(payment);
 
     await _redisDb.StringSetAsync(paymentKey, paymentJson);
-    _logger.LogDebug("Pagamento {CorrelationId} armazenado como JSON no Redis.", payment.CorrelationId);
 
     await _redisDb.SortedSetAddAsync(PaymentIndexKey, payment.CorrelationId.ToString(), payment.RequestedAt.Ticks);
 

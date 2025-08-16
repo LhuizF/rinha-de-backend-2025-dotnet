@@ -21,7 +21,6 @@ if (File.Exists(socketPath))
 builder.WebHost.ConfigureKestrel(options =>
 {
   options.ListenUnixSocket(socketPath);
-  options.ListenAnyIP(8080);
 });
 
 
@@ -60,7 +59,7 @@ builder.Services.AddHostedService(
 
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
-    var redisConnection = Environment.GetEnvironmentVariable("REDIS_CONNECTION") ?? throw new ArgumentNullException("REDIS_CONNECTION Error");
+    var redisConnection = Environment.GetEnvironmentVariable("REDIS_CONNECTION") ?? "localhost:6379,abortConnect=false,allowAdmin=true";
     if (string.IsNullOrEmpty(redisConnection))
     {
         throw new InvalidOperationException("Redis connection string is not configured.");

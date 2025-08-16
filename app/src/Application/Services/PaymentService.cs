@@ -16,8 +16,6 @@ namespace Rinha.Application.Services
     private readonly IMapper _mapper;
     private readonly ILogger<PaymentService> _logger;
 
-    private const int RetryCount = 3;
-
     public PaymentService(IPaymentRepository paymentRepository, IPaymentProcessorClient paymentProcessorClient, IMessagePublisher messagePublisher, IMapper mapper, ILogger<PaymentService> logger)
     {
       _paymentRepository = paymentRepository;
@@ -29,53 +27,43 @@ namespace Rinha.Application.Services
 
     public void AddPaymentToQueueAsync(Guid correlationId, decimal amount)
     {
-      var paymentMessage = new PaymentMessage(correlationId, amount, DateTime.UtcNow);
+      var paymentMessage = new PaymentMessage(correlationId, amount);
       _messagePublisher.PublishAsync(paymentMessage);
     }
 
     public async Task ProcessPaymentAsync(PaymentMessage paymentMessage)
     {
-      var payment = new Payment(
-        paymentMessage.CorrelationId,
-        paymentMessage.Amount,
-        paymentMessage.RequestedAt
-      );
 
-      var isSuccess = await SendPaymentAsync(payment);
+      var payment = await SendPaymentAsync(paymentMessage);
 
-      if (isSuccess)
+      if (payment != null)
       {
         await _paymentRepository.AddAsync(payment);
 
         return;
       }
-      _logger.LogWarning("Falha final no processamento do pagamento {CorrelationId}, {isSuccess}", payment.CorrelationId, isSuccess);
+      _logger.LogWarning("Falha final no processamento do pagamento {CorrelationId}", paymentMessage.CorrelationId);
 
-      AddPaymentToQueueAsync(payment.CorrelationId, payment.GetAmount());
+      AddPaymentToQueueAsync(paymentMessage.CorrelationId, paymentMessage.Amount);
     }
 
-    private async Task<bool> SendPaymentAsync(Payment payment)
+    private async Task<Payment?> SendPaymentAsync(PaymentMessage paymentMessage)
     {
-      var request = new PaymentMessage(payment.CorrelationId, payment.GetAmount(), payment.RequestedAt);
+      var payment = new Payment(paymentMessage.CorrelationId, paymentMessage.Amount);
 
-      for (int i = 1; i <= RetryCount; i++)
+      if (await _paymentProcessorClient.ProcessPaymentDefault(payment))
       {
-        if (await _paymentProcessorClient.ProcessPaymentDefault(request))
-        {
-          payment.SetProcessor(PaymentProcessor.Default);
-          return true;
-        }
-
-        // await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, i)));
+        payment.SetProcessor(PaymentProcessor.Default);
+        return payment;
       }
 
-      if (await _paymentProcessorClient.ProcessPaymentFallback(request))
+      if (await _paymentProcessorClient.ProcessPaymentFallback(payment))
       {
         payment.SetProcessor(PaymentProcessor.Fallback);
-        return true;
+        return payment;
       }
 
-      return false;
+      return null;
     }
 
     public async Task<PaymentsSummaryDTO> GetPaymentsSummaryAsync(DateTime? from, DateTime? to)

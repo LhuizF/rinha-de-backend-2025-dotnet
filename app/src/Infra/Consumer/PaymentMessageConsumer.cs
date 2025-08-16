@@ -37,11 +37,6 @@ namespace Rinha.Infra.Consumer
         using var scope = _serviceProvider.CreateScope();
         var paymentService = scope.ServiceProvider.GetRequiredService<IPaymentService>();
 
-        if(paymentService == null)
-        {
-          Console.WriteLine("PaymentService is null, cannot process message.");
-          return;
-        }
         await paymentService.ProcessPaymentAsync(message);
       }
       catch (Exception ex)

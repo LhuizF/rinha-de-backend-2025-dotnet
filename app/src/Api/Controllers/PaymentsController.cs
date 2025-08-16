@@ -19,12 +19,13 @@ namespace Rinha.Api.Controllers
     {
       _paymentService.AddPaymentToQueueAsync(paymentRequest.CorrelationId, paymentRequest.Amount);
 
-      return Ok(new { message = "Ok" });
+      return Ok();
     }
 
     [HttpGet("/payments-summary")]
     public async Task<IActionResult> PaymentsSummary([FromQuery] DateTime? from, [FromQuery] DateTime? to)
     {
+      Console.WriteLine($"Received request for payments summary from {from} to {to}");
       var summary = await _paymentService.GetPaymentsSummaryAsync(from, to);
 
       return Ok(summary);
